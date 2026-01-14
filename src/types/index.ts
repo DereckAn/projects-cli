@@ -31,3 +31,17 @@ export interface ExistingSecrets {
   url: boolean;
   key: boolean;
 }
+
+// GitHub sync types
+export interface GitHubSyncConfig {
+  repoUrl: string;
+  repoName: string;
+  repoOwner: string;
+}
+
+export interface GitHubRepo {
+  name: string;
+  url: string;
+  description?: string;
+  private: boolean;
+}

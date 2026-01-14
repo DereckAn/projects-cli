@@ -11,6 +11,7 @@
     "README.md"
   ],
   "scripts": {
+    "prepublishOnly": "bun run build",
     "build": "bun build src/index.ts --compile --outfile create-project-meta",
     "dev": "bun run src/index.ts",
     "generate-key": "bun run scripts/generate-api-key.ts",
@@ -34,15 +35,15 @@
     "automation",
     "developer-tools"
   ],
-  "author": "Tu Nombre <tu@email.com>",
+  "author": "Dereck Angeles - dereckangeles15071998@gmail.com",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tu-usuario/da-proj.git"
+    "url": "https://github.com/DereckAn/da-proj.git"
   },
-  "homepage": "https://github.com/tu-usuario/da-proj#readme",
+  "homepage": "https://github.com/DereckAn/da-proj#readme",
   "bugs": {
-    "url": "https://github.com/tu-usuario/da-proj/issues"
+    "url": "https://github.com/DereckAn/da-proj/issues"
   },
   "engines": {
     "node": ">=18.0.0"
