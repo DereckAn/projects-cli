@@ -3,19 +3,19 @@
   "version": "1.0.0",
   "description": "CLI tool to setup portfolio project metadata with automatic GitHub Actions sync",
   "bin": {
-    "da-proj": "./index.ts"
+    "da-proj": "./src/index.ts"
   },
   "type": "module",
   "files": [
-    "index.ts",
+    "src/**/*.ts",
     "README.md"
   ],
   "scripts": {
-    "build": "bun build index.ts --compile --outfile create-project-meta",
-    "dev": "bun run index.ts",
-    "generate-key": "bun run generate-api-key.ts",
-    "generate-key:ps": "pwsh -File generate-api-key.ps1",
-    "generate-key:node": "node generate-api-key.js"
+    "build": "bun build src/index.ts --compile --outfile create-project-meta",
+    "dev": "bun run src/index.ts",
+    "generate-key": "bun run scripts/generate-api-key.ts",
+    "generate-key:ps": "pwsh -File scripts/generate-api-key.ps1",
+    "generate-key:node": "node scripts/generate-api-key.js"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",

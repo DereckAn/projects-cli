@@ -4,6 +4,10 @@ import { parseArgs } from "util";
 import { mkdir, writeFile, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { input, select } from "@inquirer/prompts";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // Tipos para el proyecto
 interface ProjectMetadata {
@@ -42,6 +46,319 @@ const log = {
   warn: (msg: string) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
   title: (msg: string) => console.log(`\n${colors.bright}${colors.cyan}${msg}${colors.reset}\n`),
 };
+
+// Verificar si GitHub CLI está instalado
+async function checkGitHubCLI(): Promise<boolean> {
+  try {
+    await execAsync('gh --version');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Verificar si un secret existe en el repositorio
+async function checkSecretExists(secretName: string): Promise<boolean> {
+  try {
+    const { stdout } = await execAsync('gh secret list');
+    return stdout.includes(secretName);
+  } catch {
+    return false;
+  }
+}
+
+// Obtener información de los secrets existentes
+async function getExistingSecrets(): Promise<{ url: boolean; key: boolean }> {
+  const urlExists = await checkSecretExists('PORTFOLIO_API_URL');
+  const keyExists = await checkSecretExists('PORTFOLIO_API_KEY');
+  return { url: urlExists, key: keyExists };
+}
+
+// Obtener ruta del archivo de configuración global
+function getConfigPath(): string {
+  const homeDir = process.env.USERPROFILE || process.env.HOME || '';
+  return `${homeDir}/.da-proj-config.json`;
+}
+
+// Leer configuración global
+async function readGlobalConfig(): Promise<{ profiles?: Array<{ name: string; portfolioUrl: string; apiKey: string }> }> {
+  try {
+    const configPath = getConfigPath();
+    if (existsSync(configPath)) {
+      const content = await readFile(configPath, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch (error) {
+    // Si hay error, retornar objeto vacío
+  }
+  return { profiles: [] };
+}
+
+// Guardar configuración global
+async function saveGlobalConfig(profile: { name: string; portfolioUrl: string; apiKey: string }) {
+  try {
+    const configPath = getConfigPath();
+    const config = await readGlobalConfig();
+    
+    if (!config.profiles) {
+      config.profiles = [];
+    }
+    
+    // Buscar si ya existe un perfil con ese nombre
+    const existingIndex = config.profiles.findIndex(p => p.name === profile.name);
+    
+    if (existingIndex >= 0) {
+      // Actualizar existente
+      config.profiles[existingIndex] = profile;
+    } else {
+      // Agregar nuevo
+      config.profiles.push(profile);
+    }
+    
+    await writeFile(configPath, JSON.stringify(config, null, 2));
+    log.success(`Configuration saved to ${configPath}`);
+  } catch (error: any) {
+    log.warn(`Could not save config: ${error.message}`);
+  }
+}
+
+// Configurar GitHub Secrets
+async function setupGitHubSecrets() {
+  log.title("🔐 GitHub Secrets Setup");
+
+  // Verificar GitHub CLI
+  const hasGH = await checkGitHubCLI();
+  if (!hasGH) {
+    log.error("GitHub CLI (gh) is not installed.");
+    console.log(`
+${colors.yellow}To install GitHub CLI:${colors.reset}
+
+${colors.bright}Windows:${colors.reset}
+  winget install --id GitHub.cli
+
+${colors.bright}Or download from:${colors.reset}
+  https://cli.github.com/
+
+${colors.bright}After installing, authenticate:${colors.reset}
+  gh auth login
+    `);
+    process.exit(1);
+  }
+
+  // Verificar autenticación
+  try {
+    await execAsync('gh auth status');
+  } catch {
+    log.error("Not authenticated with GitHub CLI.");
+    console.log(`
+${colors.yellow}Please authenticate first:${colors.reset}
+  gh auth login
+    `);
+    process.exit(1);
+  }
+
+  log.info("GitHub CLI is ready!\n");
+
+  // Verificar si ya existen secrets en este repo
+  const existingSecrets = await getExistingSecrets();
+  
+  if (existingSecrets.url || existingSecrets.key) {
+    log.warn("Found existing secrets in this repository:");
+    if (existingSecrets.url) console.log(`  ${colors.yellow}✓${colors.reset} PORTFOLIO_API_URL`);
+    if (existingSecrets.key) console.log(`  ${colors.yellow}✓${colors.reset} PORTFOLIO_API_KEY`);
+    console.log('');
+    
+    const overwrite = await select({
+      message: "Do you want to overwrite them?",
+      choices: [
+        { value: "yes", name: "Yes, overwrite with new configuration" },
+        { value: "no", name: "No, keep existing secrets" }
+      ]
+    });
+    
+    if (overwrite === "no") {
+      log.info("Keeping existing secrets. No changes made.");
+      return;
+    }
+    
+    console.log('');
+  }
+
+  // Leer configuración existente
+  const config = await readGlobalConfig();
+  const profiles = config.profiles || [];
+  
+  let selectedProfile: { name: string; portfolioUrl: string; apiKey: string } | null = null;
+  
+  if (profiles.length > 0) {
+    log.info(`Found ${profiles.length} saved profile(s):\n`);
+    
+    const choices = [
+      ...profiles.map((p, i) => ({
+        value: `profile-${i}`,
+        name: `${p.name} (${p.portfolioUrl})`
+      })),
+      { value: "new", name: "➕ Create new profile" },
+      { value: "list", name: "📋 List all profiles" }
+    ];
+    
+    const selection = await select({
+      message: "Select a profile or create new:",
+      choices
+    });
+    
+    if (selection === "list") {
+      // Mostrar todas las configuraciones
+      log.title("📋 Saved Profiles");
+      profiles.forEach((p, i) => {
+        console.log(`\n${colors.bright}${i + 1}. ${p.name}${colors.reset}`);
+        console.log(`   URL: ${p.portfolioUrl}`);
+        console.log(`   Key: ${p.apiKey.substring(0, 16)}...${p.apiKey.substring(p.apiKey.length - 4)}`);
+      });
+      console.log('');
+      
+      const profileIndex = await input({
+        message: "Enter profile number to use (or 0 to create new):",
+        default: "1"
+      });
+      
+      const idx = parseInt(profileIndex) - 1;
+      if (idx >= 0 && idx < profiles.length) {
+        selectedProfile = profiles[idx] || null;
+      }
+    } else if (selection.startsWith("profile-")) {
+      const idx = parseInt(selection.replace("profile-", ""));
+      selectedProfile = profiles[idx] || null;
+    }
+    
+    if (selectedProfile) {
+      log.info(`Using profile: ${selectedProfile.name}`);
+      
+      // Usar configuración existente
+      try {
+        if (existingSecrets.url) {
+          log.info("Overwriting PORTFOLIO_API_URL...");
+        }
+        await execAsync(`gh secret set PORTFOLIO_API_URL --body "${selectedProfile.portfolioUrl}"`);
+        log.success(existingSecrets.url ? "Updated PORTFOLIO_API_URL" : "Set PORTFOLIO_API_URL");
+
+        if (existingSecrets.key) {
+          log.info("Overwriting PORTFOLIO_API_KEY...");
+        }
+        await execAsync(`gh secret set PORTFOLIO_API_KEY --body "${selectedProfile.apiKey}"`);
+        log.success(existingSecrets.key ? "Updated PORTFOLIO_API_KEY" : "Set PORTFOLIO_API_KEY");
+
+        log.title("✨ Secrets configured successfully!");
+        console.log(`\n${colors.bright}Using profile: ${selectedProfile.name}${colors.reset} 🎉\n`);
+        return;
+      } catch (error: any) {
+        log.error("Failed to set secrets: " + error.message);
+        process.exit(1);
+      }
+    }
+  }
+
+  // Crear nuevo perfil
+  const profileName = await input({
+    message: "Profile name (e.g., 'main', 'personal', 'work')",
+    default: profiles.length === 0 ? "main" : "profile-" + (profiles.length + 1)
+  });
+
+  const portfolioUrl = await input({
+    message: "Portfolio API URL",
+    default: "https://your-portfolio.com"
+  });
+
+  const portfolioKey = await input({
+    message: "Portfolio API Key (leave empty to generate one)",
+    default: ""
+  });
+
+  let apiKey = portfolioKey;
+  
+  // Generar API key si está vacía
+  if (!apiKey) {
+    log.info("Generating API key...");
+    const randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+    apiKey = Array.from(randomBytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    console.log(`\n${colors.bright}Generated API Key:${colors.reset}`);
+    console.log('━'.repeat(70));
+    console.log(apiKey);
+    console.log('━'.repeat(70));
+    console.log(`\n${colors.yellow}⚠️  IMPORTANT: Save this key!${colors.reset}`);
+    console.log(`\n${colors.bright}1. Add it to your portfolio as environment variable:${colors.reset}`);
+    console.log(`   PORTFOLIO_API_KEY=${apiKey}`);
+    console.log(`\n${colors.bright}2. This key will be saved locally and reused for all your projects${colors.reset}\n`);
+    
+    await input({
+      message: "Press Enter to continue and set the secrets in GitHub...",
+      default: ""
+    });
+  }
+
+  // Guardar configuración globalmente
+  await saveGlobalConfig({ name: profileName, portfolioUrl, apiKey });
+
+  // Configurar secrets en GitHub
+  log.info("Setting GitHub secrets...");
+
+  try {
+    // Set PORTFOLIO_API_URL
+    if (existingSecrets.url) {
+      log.info("Overwriting PORTFOLIO_API_URL...");
+    }
+    await execAsync(`gh secret set PORTFOLIO_API_URL --body "${portfolioUrl}"`);
+    log.success(existingSecrets.url ? "Updated PORTFOLIO_API_URL" : "Set PORTFOLIO_API_URL");
+
+    // Set PORTFOLIO_API_KEY
+    if (existingSecrets.key) {
+      log.info("Overwriting PORTFOLIO_API_KEY...");
+    }
+    await execAsync(`gh secret set PORTFOLIO_API_KEY --body "${apiKey}"`);
+    log.success(existingSecrets.key ? "Updated PORTFOLIO_API_KEY" : "Set PORTFOLIO_API_KEY");
+
+    log.title("✨ Secrets configured successfully!");
+
+    console.log(`
+${colors.bright}Configuration saved!${colors.reset}
+
+${colors.green}✓${colors.reset} Profile "${profileName}" saved in: ${getConfigPath()}
+${colors.green}✓${colors.reset} You can now use this profile in other repos!
+
+${colors.bright}Next steps:${colors.reset}
+
+1. ${colors.cyan}Make sure your portfolio has the API key${colors.reset}:
+   PORTFOLIO_API_KEY=${apiKey}
+
+2. ${colors.cyan}Test the workflow${colors.reset}:
+   git add .
+   git commit -m "Test workflow"
+   git push
+
+${colors.bright}All your projects using this profile will sync to the same portfolio!${colors.reset} 🎉
+    `);
+
+  } catch (error: any) {
+    log.error("Failed to set secrets: " + error.message);
+    console.log(`
+${colors.yellow}You can set them manually:${colors.reset}
+
+1. Go to your repo on GitHub
+2. Settings > Secrets and variables > Actions
+3. New repository secret:
+   - Name: PORTFOLIO_API_URL
+   - Value: ${portfolioUrl}
+4. New repository secret:
+   - Name: PORTFOLIO_API_KEY
+   - Value: ${apiKey}
+    `);
+    process.exit(1);
+  }
+}
 
 // Generar el contenido del MDX
 function generateMDX(metadata: ProjectMetadata, content: string): string {
@@ -280,6 +597,7 @@ async function main() {
       help: { type: "boolean", short: "h" },
       init: { type: "boolean", short: "i" },
       portfolio: { type: "string", short: "p" },
+      secrets: { type: "boolean", short: "s" },
     },
     allowPositionals: true,
   });
@@ -293,13 +611,21 @@ ${colors.bright}USAGE:${colors.reset}
 
 ${colors.bright}OPTIONS:${colors.reset}
   -i, --init              Initialize project metadata
+  -s, --secrets           Configure GitHub secrets (requires GitHub CLI)
   -p, --portfolio <url>   Portfolio API URL
   -h, --help              Show this help message
 
 ${colors.bright}EXAMPLES:${colors.reset}
   bunx da-proj --init
+  bunx da-proj --secrets
   bunx da-proj --init --portfolio https://myportfolio.com
     `);
+    process.exit(0);
+  }
+
+  // Si se usa --secrets, configurar secrets y salir
+  if (args.values.secrets) {
+    await setupGitHubSecrets();
     process.exit(0);
   }
 
