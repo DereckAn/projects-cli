@@ -1,12 +1,50 @@
 {
-  "name": "react-proj",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
+  "name": "da-proj",
+  "version": "1.0.0",
+  "description": "CLI tool to setup portfolio project metadata with automatic GitHub Actions sync",
+  "bin": {
+    "da-proj": "./index.ts"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "type": "module",
+  "files": [
+    "index.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build index.ts --compile --outfile create-project-meta",
+    "dev": "bun run index.ts",
+    "generate-key": "bun run generate-api-key.ts",
+    "generate-key:ps": "pwsh -File generate-api-key.ps1",
+    "generate-key:node": "node generate-api-key.js"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "keywords": [
+    "portfolio",
+    "cli",
+    "metadata",
+    "github-actions",
+    "project-setup",
+    "mdx",
+    "automation",
+    "developer-tools"
+  ],
+  "author": "Tu Nombre <tu@email.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tu-usuario/da-proj.git"
+  },
+  "homepage": "https://github.com/tu-usuario/da-proj#readme",
+  "bugs": {
+    "url": "https://github.com/tu-usuario/da-proj/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

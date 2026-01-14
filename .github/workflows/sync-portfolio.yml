@@ -1,0 +1,65 @@
+name: Sync to Portfolio
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '.project-metadata.mdx'
+      - 'proj-images/**'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Extract metadata
+        id: metadata
+        run: |
+          bun install gray-matter
+          bun run -e "
+          import matter from 'gray-matter';
+          import { readFileSync } from 'fs';
+          
+          const content = readFileSync('.project-metadata.mdx', 'utf8');
+          const { data, content: markdown } = matter(content);
+          
+          data.repository = {
+            owner: process.env.GITHUB_REPOSITORY.split('/')[0],
+            name: process.env.GITHUB_REPOSITORY.split('/')[1],
+            url: `https://github.com/${process.env.GITHUB_REPOSITORY}`
+          };
+          data.lastCommit = process.env.GITHUB_SHA;
+          data.lastUpdated = new Date().toISOString();
+          
+          console.log('METADATA=' + JSON.stringify({ metadata: data, markdown }));
+          " > output.txt
+          
+          METADATA=$(cat output.txt | grep METADATA | cut -d'=' -f2-)
+          echo "data<<EOF" >> $GITHUB_OUTPUT
+          echo "$METADATA" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Notify Portfolio
+        env:
+          PORTFOLIO_API_URL: ${{ secrets.PORTFOLIO_API_URL }}
+          PORTFOLIO_API_KEY: ${{ secrets.PORTFOLIO_API_KEY }}
+        run: |
+          curl -X POST "$PORTFOLIO_API_URL/api/update-project" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $PORTFOLIO_API_KEY" \
+            -d '${{ steps.metadata.outputs.data }}'
+      
+      - name: Create deployment badge
+        if: success()
+        run: |
+          echo "![Synced to Portfolio](https://img.shields.io/badge/portfolio-synced-success)" >> $GITHUB_STEP_SUMMARY
+          echo "Last sync: $(date)" >> $GITHUB_STEP_SUMMARY

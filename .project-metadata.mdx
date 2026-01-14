@@ -1,0 +1,68 @@
+---
+title: "projects-cli"
+category: "cli"
+type: "small"
+status: "archived"
+age: "1 day"
+lastUpdated: "2026-01-14"
+technologies:
+  - bun
+  - TypeScript
+  - github
+images:
+  cover: /proj-images/cover.png
+  gallery:
+
+---
+
+# projects-cli
+
+## Description
+
+This is a simple project to create files, folders, and workflows for each repository. This makes it faster and almost automates the display of each repository in my portfolio. 
+
+## Key Features
+
+- CLI tool
+- Key Generator
+- Github Actions
+
+## Challenges
+
+During development, I faced several technical challenges:
+
+- **Interactive Input with Bun**: The initial implementation using `Bun.stdin.read()` didn't work properly for interactive prompts. Had to research and switch to `@inquirer/prompts` library for reliable user input handling.
+
+- **TypeScript Type Safety**: Dealing with optional parameters and ensuring type safety across the codebase, especially with the `prompt` function return types and array access patterns.
+
+- **GitHub Actions Workflow**: Designing a workflow that could parse MDX files, extract metadata, and send it to an external API required understanding GitHub Actions syntax and environment variables.
+
+- **Cross-platform Compatibility**: Ensuring the CLI works seamlessly with both `npx` (Node.js) and `bunx` (Bun) while maintaining the shebang configuration.
+
+## Outcomes
+
+This project taught me valuable lessons:
+
+- **CLI Development**: Learned how to build professional command-line tools with proper argument parsing, colored output, and interactive prompts.
+
+- **Automation with GitHub Actions**: Gained hands-on experience creating CI/CD workflows that automate portfolio updates, including metadata extraction and API integration.
+
+- **Package Publishing**: Understood the complete process of publishing npm packages, including configuring `package.json`, creating proper documentation, and managing versions.
+
+- **Developer Experience**: Focused on creating a smooth DX with clear prompts, helpful error messages, and comprehensive documentation.
+
+- **MDX and Frontmatter**: Learned to work with MDX format and gray-matter library for parsing structured content.
+
+## Future Improvements
+
+- [ ] Add validation for URLs and image paths before generating files
+- [ ] Support for multiple languages/i18n in generated content
+- [ ] Interactive mode to update existing metadata without recreating files
+- [ ] Template system for customizable README and MDX formats
+- [ ] Integration with image optimization services (TinyPNG, Cloudinary)
+- [ ] Support for multiple portfolio endpoints (sync to multiple sites)
+- [ ] Add `--dry-run` flag to preview changes before creating files
+- [ ] Generate placeholder images automatically
+- [ ] Add analytics tracking for portfolio project views
+- [ ] Create a web UI for managing project metadata
+

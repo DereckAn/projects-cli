@@ -1,0 +1,11 @@
+node_modules/
+.git/
+.gitignore
+tsconfig.json
+bun.lock
+*.log
+.DS_Store
+PUBLISH.md
+.project-metadata.mdx
+.project-schema.json
+.github/
