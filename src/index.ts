@@ -10,6 +10,18 @@ import { syncStatusCommand } from "./commands/sync-status.js";
 import { syncCommand } from "./commands/sync.js";
 import { colors } from "./utils/logger.js";
 
+// Manejador elegante para Ctrl+C
+process.on("SIGINT", () => {
+  console.log(
+    `\n\n${colors.yellow}⚠️  Operation cancelled by user${colors.reset}`
+  );
+  console.log(`${colors.dim}No files were modified.${colors.reset}`);
+  console.log(
+    `${colors.dim}Tip: Run ${colors.cyan}da-proj --help${colors.dim} to see all available options.${colors.reset}\n`
+  );
+  process.exit(0);
+});
+
 async function main() {
   const args = parseArgs({
     args: Bun.argv.slice(2),

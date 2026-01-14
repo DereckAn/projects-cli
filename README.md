@@ -356,12 +356,39 @@ da-proj/
 └── package.json
 ```
 
+### Publicar en NPM
+
+Este proyecto usa GitHub Actions para publicar automáticamente en npm cuando cambias la versión en `package.json`.
+
+**Proceso rápido:**
+
+```bash
+# 1. Actualizar versión
+npm version patch  # o minor, o major
+
+# 2. Actualizar CHANGELOG.md con los cambios
+
+# 3. Commit y push
+git add package.json CHANGELOG.md
+git commit -m "chore: bump version to X.X.X"
+git push origin main
+
+# 4. El workflow automáticamente:
+#    - Detecta el cambio de versión
+#    - Compila el paquete
+#    - Publica en npm
+#    - Crea un git tag
+```
+
+📖 **Guía completa:** Ver [docs/NPM-PUBLISH.md](docs/NPM-PUBLISH.md)
+
 ---
 
 ## 📚 Documentación
 
 - [Setup de Secrets](docs/SETUP-SECRETS.md) - Guía detallada de configuración
 - [GitHub Sync](docs/GITHUB-SYNC.md) - Sincronización entre dispositivos
+- [Publicación en NPM](docs/NPM-PUBLISH.md) - Automatización de publicaciones
 - [Workflow Explicado](docs/WORKFLOW-EXPLICADO.md) - Cómo funciona GitHub Actions
 - [Arquitectura](src/README.md) - Estructura del código
 

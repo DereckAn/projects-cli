@@ -1,97 +1,188 @@
-import { mkdir, writeFile, readFile } from "fs/promises";
-import { existsSync } from "fs";
 import { input, select } from "@inquirer/prompts";
-import type { ProjectMetadata } from "../types/index.js";
-import { log, colors } from "../utils/logger.js";
+import { existsSync } from "fs";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { generateMDX } from "../generators/mdx.js";
-import { generateWorkflow } from "../generators/workflow.js";
 import { generateReadme } from "../generators/readme.js";
 import { generateSchema } from "../generators/schema.js";
+import { generateWorkflow } from "../generators/workflow.js";
+import type { ProjectMetadata } from "../types/index.js";
+import { colors, log } from "../utils/logger.js";
 
 export async function initCommand() {
   log.title("🚀 Project Metadata Setup");
 
   // Verificar que estamos en un repositorio git
   if (!existsSync(".git")) {
-    log.error("Not a git repository. Please run this command in a git repository.");
+    log.error(
+      "Not a git repository. Please run this command in a git repository."
+    );
     process.exit(1);
+  }
+
+  // Verificar si ya existe .project-metadata.mdx
+  const metadataExists = existsSync(".project-metadata.mdx");
+
+  if (metadataExists) {
+    log.warn("⚠️  .project-metadata.mdx already exists!");
+
+    const action = await select({
+      message: "What would you like to do?",
+      choices: [
+        {
+          value: "update-schema",
+          name: "Update schema files only (keeps your content)",
+        },
+        {
+          value: "recreate",
+          name: "Recreate metadata file (⚠️  will overwrite existing content)",
+        },
+        { value: "cancel", name: "Cancel" },
+      ],
+    });
+
+    if (action === "cancel") {
+      log.info("Operation cancelled.");
+      process.exit(0);
+    }
+
+    if (action === "update-schema") {
+      // Solo actualizar archivos de schema y workflow
+      log.info("\nUpdating schema and workflow files...");
+
+      try {
+        await mkdir(".github/workflows", { recursive: true });
+        await writeFile(
+          ".github/workflows/sync-portfolio.yml",
+          generateWorkflow()
+        );
+        log.success("Updated .github/workflows/sync-portfolio.yml");
+
+        await writeFile(".project-schema.json", generateSchema());
+        log.success("Updated .project-schema.json");
+
+        log.title("✨ Schema files updated!");
+        console.log(
+          `\n${colors.bright}Your .project-metadata.mdx was not modified.${colors.reset}\n`
+        );
+        console.log(
+          `${colors.cyan}New field available:${colors.reset} You can now add 'videos' field for YouTube URLs\n`
+        );
+        console.log(
+          `Example:\n${colors.yellow}videos:\n  - https://www.youtube.com/watch?v=xxxxx\n  - https://www.youtube.com/watch?v=yyyyy${colors.reset}\n`
+        );
+
+        process.exit(0);
+      } catch (error) {
+        log.error("Failed to update files: " + error);
+        process.exit(1);
+      }
+    }
+
+    // Si eligió recreate, continuar con el flujo normal
+    log.warn(
+      "⚠️  Proceeding with recreation. Your current content will be overwritten."
+    );
   }
 
   // Recopilar información del proyecto
   log.info("Let's set up your project metadata...\n");
 
-  const title = await input({ 
+  const title = await input({
     message: "Project title",
-    default: "My Awesome Project"
+    default: "My Awesome Project",
   });
-  
-  const category = await input({ 
+
+  const category = await input({
     message: "Category",
-    default: "Web Development"
+    default: "Web Development",
   });
-  
-  const type = await select({ 
+
+  const type = (await select({
     message: "Project type",
     choices: [
       { value: "small", name: "Small project" },
-      { value: "featured", name: "Featured project" }
-    ]
-  }) as "featured" | "small";
-  
-  const status = await select({ 
+      { value: "featured", name: "Featured project" },
+    ],
+  })) as "featured" | "small";
+
+  const status = (await select({
     message: "Project status",
     choices: [
       { value: "in-progress", name: "In Progress" },
       { value: "active", name: "Active" },
-      { value: "archived", name: "Archived" }
-    ]
-  }) as "active" | "archived" | "in-progress";
-  
-  const age = await input({ 
+      { value: "archived", name: "Archived" },
+    ],
+  })) as "active" | "archived" | "in-progress";
+
+  const age = await input({
     message: "Project age (optional)",
-    default: "+2 months"
+    default: "+2 months",
   });
-  
-  const demo = await input({ 
+
+  const demo = await input({
     message: "Demo URL (optional)",
-    default: ""
+    default: "",
   });
-  
+
   // Tecnologías - input múltiple
-  const techInput = await input({ 
+  const techInput = await input({
     message: "Technologies (comma separated)",
-    default: "React, TypeScript, Node.js"
+    default: "React, TypeScript, Node.js",
   });
-  const technologies = techInput.split(",").map(t => t.trim()).filter(Boolean);
-  
-  const coverImage = await input({ 
+  const technologies = techInput
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const coverImage = await input({
     message: "Cover image path",
-    default: "/proj-images/cover.png"
+    default: "/proj-images/cover.png",
   });
-  
-  const galleryInput = await input({ 
+
+  const galleryInput = await input({
     message: "Gallery images (comma separated, optional)",
-    default: ""
+    default: "",
   });
-  const galleryImages = galleryInput ? galleryInput.split(",").map(t => t.trim()).filter(Boolean) : [];
+  const galleryImages = galleryInput
+    ? galleryInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+
+  // Videos de YouTube
+  const videosInput = await input({
+    message: "YouTube video URLs (comma separated, optional)",
+    default: "",
+  });
+  const videos = videosInput
+    ? videosInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
 
   let industry, timeline, details;
   if (type === "featured") {
-    industry = await input({ 
+    industry = await input({
       message: "Industry",
-      default: "Technology"
+      default: "Technology",
     });
-    
-    timeline = await input({ 
+
+    timeline = await input({
       message: "Timeline",
-      default: "Still Working"
+      default: "Still Working",
     });
-    
-    const detailsInput = await input({ 
+
+    const detailsInput = await input({
       message: "Project details (comma separated)",
-      default: "Built with modern stack, Scalable architecture, Production ready"
+      default:
+        "Built with modern stack, Scalable architecture, Production ready",
     });
-    details = detailsInput.split(",").map(t => t.trim()).filter(Boolean);
+    details = detailsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
   }
 
   const metadata: ProjectMetadata = {
@@ -106,6 +197,7 @@ export async function initCommand() {
       cover: coverImage,
       gallery: galleryImages,
     },
+    videos: videos.length > 0 ? videos : undefined,
     industry,
     timeline,
     details,
@@ -188,8 +280,8 @@ Place your project images here:
 
 ## Current images needed:
 
-${coverImage ? `- [ ] ${coverImage}` : ''}
-${galleryImages.map(img => `- [ ] ${img}`).join('\n')}
+${coverImage ? `- [ ] ${coverImage}` : ""}
+${galleryImages.map((img) => `- [ ] ${img}`).join("\n")}
 `;
     await writeFile("proj-images/README.md", imagesReadme);
     await writeFile("proj-images/.gitkeep", "");
@@ -200,7 +292,7 @@ ${galleryImages.map(img => `- [ ] ${img}`).join('\n')}
     if (existsSync(".gitignore")) {
       gitignore = await readFile(".gitignore", "utf-8");
     }
-    
+
     if (!gitignore.includes("node_modules")) {
       gitignore += "\n# Dependencies\nnode_modules/\n";
       await writeFile(".gitignore", gitignore);
@@ -214,7 +306,11 @@ ${colors.bright}Next steps:${colors.reset}
 
 1. ${colors.cyan}Add images${colors.reset} to the proj-images/ folder:
    - Cover image: ${coverImage}
-   ${galleryImages.length > 0 ? galleryImages.map(img => `- Gallery: ${img}`).join('\n   ') : ''}
+   ${
+     galleryImages.length > 0
+       ? galleryImages.map((img) => `- Gallery: ${img}`).join("\n   ")
+       : ""
+   }
 
 2. ${colors.cyan}Review and edit${colors.reset} .project-metadata.mdx
 
@@ -228,7 +324,6 @@ ${colors.bright}Next steps:${colors.reset}
 
 ${colors.bright}Portfolio will auto-sync on push!${colors.reset} 🎉
     `);
-
   } catch (error) {
     log.error("Failed to create files: " + error);
     process.exit(1);

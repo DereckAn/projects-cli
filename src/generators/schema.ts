@@ -51,6 +51,14 @@ export function generateSchema(): string {
         }
       }
     },
+    "videos": {
+      "type": "array",
+      "items": { 
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "YouTube video URLs to showcase the project"
+    },
     "industry": {
       "type": "string",
       "description": "Industry (for featured projects)"

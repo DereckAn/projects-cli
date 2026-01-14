@@ -1,6 +1,6 @@
 {
   "name": "da-proj",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI tool to setup portfolio project metadata with automatic GitHub Actions sync",
   "bin": {
     "da-proj": "./src/index.ts"

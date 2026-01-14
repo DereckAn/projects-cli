@@ -12,6 +12,7 @@ export interface ProjectMetadata {
     cover: string;
     gallery: string[];
   };
+  videos?: string[]; // YouTube video URLs
   industry?: string;
   timeline?: string;
   details?: string[];
