@@ -9,6 +9,7 @@ import { setupGitHubSyncCommand } from "./commands/setup-github-sync.js";
 import { syncStatusCommand } from "./commands/sync-status.js";
 import { syncCommand } from "./commands/sync.js";
 import { colors } from "./utils/logger.js";
+import { showVersionBanner } from "./utils/version.js";
 
 // Manejador elegante para Ctrl+C
 process.on("SIGINT", () => {
@@ -23,6 +24,9 @@ process.on("SIGINT", () => {
 });
 
 async function main() {
+  // Mostrar versión y verificar actualizaciones
+  await showVersionBanner();
+
   const args = parseArgs({
     args: Bun.argv.slice(2),
     options: {

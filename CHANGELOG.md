@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.4] - 2026-01-14
+
+### Added
+
+- 📊 **Mostrar versión actual** al iniciar el CLI
+- 🔔 **Verificación automática de actualizaciones** desde npm
+- 💡 **Instrucciones de actualización** cuando hay una nueva versión disponible
+- 🧹 **Guía para limpiar caché** de bunx si se usa una versión desactualizada
+
+### Changed
+
+- 🎨 Banner de inicio mejorado con información de versión
+
 ## [1.1.0] - 2026-01-14
 
 ### Added
